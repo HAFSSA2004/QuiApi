@@ -32,6 +32,9 @@ const productSchema = new mongoose.Schema({
 
   
 const Product = mongoose.model("produits", productSchema); // Collection: "produits"
+app.get("/", (req, res) => {
+    res.send("Welcome to the API! Use /products to get data.");
+});
 
 // ➤ Get all products
 app.get("/products", async (req, res) => {
