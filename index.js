@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 8000;
 app.use(express.json());
 app.use(cors());
 
-// Connect to MongoDB Atlas
+// Connect to MongoDB Atlas 
 mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true
@@ -20,16 +20,17 @@ mongoose.connect(process.env.MONGO_URI, {
 
 // Product Schema
 const productSchema = new mongoose.Schema({
-    id: Number,  // ID personnalisé
+    id: { type: Number, unique: true, required: true }, // Ensure id is unique and required
     image: String,
-    title: String,
+    title: String,  
     location: String,
     description: String,
-    price: String,
+    price: { type: Number, required: true },  // ✅ Ensure price is required
     categorie: String,
-    datePoster: String
+    datePoster: { type: Date, default: Date.now }, 
 });
 
+  
 const Product = mongoose.model("produits", productSchema); // Collection: "produits"
 
 // ➤ Get all products
@@ -44,52 +45,60 @@ app.get("/products", async (req, res) => {
 
 // ➤ Get a single product by ID
 app.get("/produits/:id", async (req, res) => {
-    const { id } = req.params;
-    console.log("ID reçu:", id);
+    const id = Number(req.params.id);
+    console.log("🔍 Received request for ID:", id);  // ✅ Log incoming request
 
     if (isNaN(id)) {
-        return res.status(400).json({ error: "L'ID doit être un nombre valide." });
+        console.log("❌ Invalid product ID:", req.params.id);
+        return res.status(400).json({ error: "Invalid product ID." });
     }
 
     try {
-        const produit = await Product.findOne({ id: Number(id) }); // ✅ Correction ici
+        const produit = await Product.findOne({ id: id });
+        console.log("📋 Query result:", produit);  // ✅ Log what MongoDB returns
+
         if (!produit) {
-            return res.status(404).json({ error: "Produit non trouvé." });
+            console.log("❌ Product not found in database.");
+            return res.status(404).json({ error: "Product not found." });
         }
+
+        console.log("✅ Product found:", produit);
         res.json(produit);
     } catch (error) {
-        console.error("Erreur serveur:", error);
-        res.status(500).json({ error: "Erreur serveur." });
+        console.error("❌ Error fetching product:", error);
+        res.status(500).json({ error: "Server error." });
     }
 });
 
-// ➤ Add a new product
-// ➤ Add a new product
+// ➤ Add a new product (INSERT)
 app.post("/products", async (req, res) => {
     try {
-        const { id, image, title, location, description, price, categorie, datePoster } = req.body;
+        const { id, image, title, location, description, price, categorie } = req.body;
 
-        // Vérification des champs requis
-        if (!title || !price || !location || !categorie) {
-            return res.status(400).json({ error: "Veuillez remplir tous les champs obligatoires." });
+        if (!id || isNaN(Number(id)) || !image || !title || !location || !description || isNaN(price) || !categorie) {
+            return res.status(400).json({ error: "All fields are required and price & id must be numbers." });
+        }
+
+        const existingProduct = await Product.findOne({ id: Number(id) });
+        if (existingProduct) {
+            return res.status(400).json({ error: "A product with this ID already exists." });
         }
 
         const newProduct = new Product({
-            id,
-            image,
-            title,
-            location,
-            description,
-            price,
-            categorie,
-            datePoster
+            id: Number(req.body.id), // Convert id to Number
+            image: req.body.image,
+            title: req.body.title,
+            location: req.body.location,
+            description: req.body.description,
+            price: Number(req.body.price), // ✅ Convert price to Number
+            categorie: req.body.categorie,
         });
 
-        await newProduct.save();
-        res.status(201).json({ message: "Produit ajouté avec succès !" });
-    } catch (error) {
-        console.error("Erreur lors de l'ajout du produit:", error);
-        res.status(500).json({ error: "Erreur interne du serveur." });
+        const savedProduct = await newProduct.save();
+        res.status(201).json({ message: "Product added successfully!", product: savedProduct });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
