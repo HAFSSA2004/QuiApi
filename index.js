@@ -20,21 +20,85 @@ mongoose.connect(process.env.MONGO_URI, {
 
 // Product Schema
 const productSchema = new mongoose.Schema({
-    id: { type: Number, unique: true, required: true }, // Ensure id is unique and required
+    id: { type: Number, unique: true, required: true },
     image: String,
-    title: String,  
+    title: String,
     location: String,
     description: String,
-    price: { type: Number, required: true },  // ✅ Ensure price is required
+    price: { type: Number, required: true },
     categorie: String,
-    datePoster: { type: Date, default: Date.now }, 
-});
+    datePoster: { type: Date, default: Date.now },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "users", required: true }
 
+});
   
 const Product = mongoose.model("produits", productSchema); // Collection: "produits"
 app.get("/", (req, res) => {
     res.send("Welcome to the API! Use /products to get data.");
 });
+
+app.get("/products/user/:userId", async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        console.log("User ID reçu :", userId);
+
+        // Vérifier si l'ID est valide
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ error: "ID utilisateur invalide." });
+        }
+
+        // Convertir userId en ObjectId pour la requête
+        const objectId = new mongoose.Types.ObjectId(userId);
+
+        // Trouver les produits associés à cet utilisateur
+        const userProducts = await Product.find({ userId: objectId });
+
+        console.log("Produits trouvés :", userProducts);
+
+        if (userProducts.length === 0) {
+            return res.status(404).json({ message: "Aucune annonce trouvée pour cet utilisateur." });
+        }
+
+        res.status(200).json(userProducts);
+    } catch (err) {
+        console.error("Erreur serveur :", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+const userSchema = new mongoose.Schema({
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    role: { type: String, required: true, enum: ["seller", "admin"] },
+    adminKey: { type: String }  // Uniquement pour les admins
+});
+const User = mongoose.model("users", userSchema); // Collection: "users"
+
+
+// ➤ Login Route
+app.post("/login", async (req, res) => {
+    const { email, password } = req.body;
+
+    try {
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(401).json({ error: "Invalid email or password" });
+        }
+
+        if (user.password !== password) {
+            return res.status(401).json({ error: "Invalid email or password" });
+        }
+
+        if (user.role === "admin") {
+            return res.json({ message: "Welcome Admin", role: "admin", space: "/admin-space" });
+        } else {
+            return res.json({ message: "Welcome Seller", role: "seller", space: "/seller-space" });
+        }
+    } catch (error) {
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
 
 // ➤ Get all products
 app.get("/products", async (req, res) => {
