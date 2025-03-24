@@ -42,7 +42,7 @@ app.get("/products/user/:userId", async (req, res) => {
         const userId = req.params.userId;
         console.log("User ID reçu :", userId);
 
-        // Vérifier si l'ID est valide
+        // Vérifier si l'ID est valide  
         if (!mongoose.Types.ObjectId.isValid(userId)) {
             return res.status(400).json({ error: "ID utilisateur invalide." });
         }
