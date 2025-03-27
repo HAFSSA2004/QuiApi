@@ -74,7 +74,7 @@ const userSchema = new mongoose.Schema({
 const User = mongoose.model("users", userSchema); // Collection: "users"
 
 
-// ➤ Login Route
+// ➤ Login Route   
 app.post("/login", async (req, res) => {
     const { email, password } = req.body;
 
